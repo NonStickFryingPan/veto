@@ -73,18 +73,47 @@ alter table public.scores enable row level security;
 create policy "users_read_all" on public.users for select using (true);
 create policy "users_insert_all" on public.users for insert with check (true);
 create policy "templates_read_all" on public.templates for select using (true);
+create policy "templates_insert_all" on public.templates for insert with check (true);
+create policy "templates_update_all" on public.templates for update using (true) with check (true);
+create policy "templates_delete_all" on public.templates for delete using (true);
 create policy "template_criteria_read_all" on public.template_criteria for select using (true);
+create policy "template_criteria_insert_all" on public.template_criteria for insert with check (true);
+create policy "template_criteria_update_all" on public.template_criteria for update using (true) with check (true);
+create policy "template_criteria_delete_all" on public.template_criteria for delete using (true);
 create policy "sessions_read_all" on public.sessions for select using (true);
 create policy "sessions_insert_all" on public.sessions for insert with check (true);
 create policy "sessions_update_creator" on public.sessions for update using (true) with check (true);
+create policy "sessions_delete_all" on public.sessions for delete using (true);
 create policy "session_criteria_read_all" on public.session_criteria for select using (true);
 create policy "session_criteria_insert_all" on public.session_criteria for insert with check (true);
+create policy "session_criteria_update_all" on public.session_criteria for update using (true) with check (true);
+create policy "session_criteria_delete_all" on public.session_criteria for delete using (true);
 create policy "session_judges_read_all" on public.session_judges for select using (true);
 create policy "session_judges_insert_all" on public.session_judges for insert with check (true);
 create policy "session_judges_update_all" on public.session_judges for update using (true) with check (true);
+create policy "session_judges_delete_all" on public.session_judges for delete using (true);
 create policy "scores_read_all" on public.scores for select using (true);
 create policy "scores_insert_all" on public.scores for insert with check (true);
 create policy "scores_update_all" on public.scores for update using (true) with check (true);
+create policy "scores_delete_all" on public.scores for delete using (true);
 
-alter publication supabase_realtime add table public.scores;
-alter publication supabase_realtime add table public.session_judges;
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'scores'
+  ) then
+    alter publication supabase_realtime add table public.scores;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'session_judges'
+  ) then
+    alter publication supabase_realtime add table public.session_judges;
+  end if;
+end $$;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Link,
   Navigate,
@@ -39,6 +39,12 @@ import {
 } from "recharts";
 import { exportResultsPdf } from "./pdf.js";
 import {
+  hasRemoteStore,
+  loadRemoteState,
+  persistRemoteState,
+  subscribeRemoteState,
+} from "./remoteStore.js";
+import {
   SCORE_LEVELS,
   completeJudge,
   computeResults,
@@ -67,14 +73,47 @@ function usePersistentState() {
     setState((current) => {
       const next = typeof updater === "function" ? updater(current) : updater;
       writeState(next);
+      if (hasRemoteStore) {
+        persistRemoteState(next, current).catch((error) => {
+          console.error(error);
+        });
+      }
       return next;
     });
   };
 
   useEffect(() => {
+    let alive = true;
+
+    if (hasRemoteStore) {
+      loadRemoteState()
+        .then((remoteState) => {
+          if (!alive || !remoteState) return;
+          writeState(remoteState);
+          setState(remoteState);
+        })
+        .catch((error) => {
+          console.error(error);
+        });
+
+      const unsubscribe = subscribeRemoteState((remoteState) => {
+        if (!alive || !remoteState) return;
+        writeState(remoteState);
+        setState(remoteState);
+      });
+
+      return () => {
+        alive = false;
+        unsubscribe();
+      };
+    }
+
     const sync = () => setState(readState());
     window.addEventListener("storage", sync);
-    return () => window.removeEventListener("storage", sync);
+    return () => {
+      alive = false;
+      window.removeEventListener("storage", sync);
+    };
   }, []);
 
   return [state, commit];

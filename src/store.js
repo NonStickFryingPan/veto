@@ -25,61 +25,61 @@ export const SCORE_LEVELS = [
   },
 ];
 
-const STORAGE_KEY = "veto-state-v1";
-const USER_KEY = "veto-user-v1";
+const STORAGE_KEY = "veto-state-v2";
+const USER_KEY = "veto-user-v2";
 
-const starterTemplates = [
+export const starterTemplates = [
   {
-    id: "template-standard-gate",
+    id: "11111111-1111-4111-8111-111111111111",
     name: "Standard Phase Gate",
     isDefault: true,
     createdAt: new Date().toISOString(),
     criteria: [
       {
-        id: "criterion-execution",
+        id: "11111111-1111-4111-8111-111111111112",
         name: "Execution quality",
         description: "Craft, completeness, and care in the finished work.",
       },
       {
-        id: "criterion-evidence",
+        id: "11111111-1111-4111-8111-111111111113",
         name: "Evidence and insight",
         description: "Decision-making is grounded in research, testing, or data.",
       },
       {
-        id: "criterion-strategy",
+        id: "11111111-1111-4111-8111-111111111114",
         name: "Strategic clarity",
         description: "The work connects clearly to the brief and next milestone.",
       },
       {
-        id: "criterion-collaboration",
+        id: "11111111-1111-4111-8111-111111111115",
         name: "Collaboration",
         description: "The team shows alignment, ownership, and responsive iteration.",
       },
     ],
   },
   {
-    id: "template-design-review",
+    id: "22222222-2222-4222-8222-222222222222",
     name: "Design Review",
     isDefault: false,
     createdAt: new Date().toISOString(),
     criteria: [
       {
-        id: "criterion-problem-fit",
+        id: "22222222-2222-4222-8222-222222222223",
         name: "Problem fit",
         description: "The proposed solution addresses a meaningful user need.",
       },
       {
-        id: "criterion-prototype",
+        id: "22222222-2222-4222-8222-222222222224",
         name: "Prototype quality",
         description: "The prototype is legible, testable, and realistic enough to judge.",
       },
       {
-        id: "criterion-feedback",
+        id: "22222222-2222-4222-8222-222222222225",
         name: "User feedback",
         description: "The team learned from users and reflected that learning in the work.",
       },
       {
-        id: "criterion-systems",
+        id: "22222222-2222-4222-8222-222222222226",
         name: "Systems thinking",
         description: "The work considers edge cases, reuse, and longer-term maintainability.",
       },
@@ -91,16 +91,23 @@ const emptyState = {
   users: [],
   templates: starterTemplates,
   sessions: [],
+  criteria: [],
   judges: [],
   scores: [],
 };
 
 export function createId(prefix) {
-  const uuid =
-    typeof crypto !== "undefined" && crypto.randomUUID
-      ? crypto.randomUUID().slice(0, 8)
-      : Math.random().toString(36).slice(2, 10);
-  return `${prefix}-${uuid}`;
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+
+  return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (char) =>
+    (
+      Number(char) ^
+      (Math.random() * 16) >>
+        (Number(char) / 4)
+    ).toString(16)
+  );
 }
 
 export function readState() {
