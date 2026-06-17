@@ -204,7 +204,7 @@ export function createSession(state, payload, userId) {
   const code = generateJoinCode(
     payload.title,
     payload.phase,
-    state.sessions.map((session) => session.code)
+    [...state.sessions.map((session) => session.code), ...(payload.reservedCodes || [])]
   );
   const session = {
     id: sessionId,

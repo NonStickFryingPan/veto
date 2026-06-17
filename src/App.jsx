@@ -78,6 +78,7 @@ const LOGIN_NAME_PLACEHOLDERS = [
 
 function usePersistentState() {
   const [state, setState] = useState(readState);
+  const [remoteReady, setRemoteReady] = useState(!hasRemoteStore);
 
   const replaceState = (nextState) => {
     writeState(nextState);
@@ -98,17 +99,27 @@ function usePersistentState() {
     });
   };
 
+  const persistAndReplace = async (nextState, previousState) => {
+    if (hasRemoteStore) {
+      await persistRemoteState(nextState, previousState);
+    }
+    return replaceState(nextState);
+  };
+
   useEffect(() => {
     let alive = true;
 
     if (hasRemoteStore) {
       loadRemoteState()
         .then((remoteState) => {
-          if (!alive || !remoteState) return;
+          if (!alive) return;
+          setRemoteReady(true);
+          if (!remoteState) return;
           replaceState(remoteState);
         })
         .catch((error) => {
           console.error(error);
+          if (alive) setRemoteReady(true);
         });
 
       const unsubscribe = subscribeRemoteState((remoteState) => {
@@ -133,27 +144,44 @@ function usePersistentState() {
   const refresh = async () => {
     if (!hasRemoteStore) return readState();
     const remoteState = await loadRemoteState();
+    setRemoteReady(true);
     if (!remoteState) return readState();
     return replaceState(remoteState);
   };
 
-  return [state, commit, refresh];
+  return [state, commit, refresh, persistAndReplace, remoteReady];
 }
 
 function App() {
-  const [state, commit, refreshState] = usePersistentState();
+  const [state, commit, refreshState, persistAndReplace, remoteReady] = usePersistentState();
   const [currentUser, setCurrentUser] = useState(readCurrentUser);
 
   useEffect(() => {
     if (!currentUser) return;
+    if (hasRemoteStore && !remoteReady) return;
     const exists = state.users.some((user) => user.id === currentUser.id);
     if (exists) return;
+    const matchingUser = state.users.find(
+      (user) => user.name.toLowerCase() === currentUser.name.toLowerCase()
+    );
+    if (matchingUser) {
+      writeCurrentUser(matchingUser);
+      setCurrentUser(matchingUser);
+      return;
+    }
     commit((current) => ({ ...current, users: [...current.users, currentUser] }));
-  }, [currentUser?.id, state.users]);
+  }, [currentUser?.id, currentUser?.name, remoteReady, state.users]);
 
-  function handleLogin(name) {
-    const result = upsertUser(state, name);
-    commit(result.state);
+  async function handleLogin(name) {
+    const baseState = hasRemoteStore ? await refreshState() : state;
+    const result = upsertUser(baseState, name);
+    if (hasRemoteStore) {
+      if (result.state !== baseState) {
+        await persistAndReplace(result.state, baseState);
+      }
+    } else if (result.state !== baseState) {
+      commit(result.state);
+    }
     writeCurrentUser(result.user);
     setCurrentUser(result.user);
   }
@@ -237,15 +265,25 @@ function LoginPage({ onLogin, user }) {
     () => LOGIN_NAME_PLACEHOLDERS[Math.floor(Math.random() * LOGIN_NAME_PLACEHOLDERS.length)]
   );
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
     if (!name.trim()) {
       setError("Name is required.");
       return;
     }
-    onLogin(name);
-    navigate("/home");
+    setError("");
+    setIsSubmitting(true);
+    try {
+      await onLogin(name);
+      navigate("/home");
+    } catch (error) {
+      console.error(error);
+      setError("Could not sign in. Try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -262,8 +300,8 @@ function LoginPage({ onLogin, user }) {
             autoComplete="name"
           />
           {error && <p className="form-error">{error}</p>}
-          <button className="button button-primary" type="submit">
-            Continue
+          <button className="button button-primary" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Continuing" : "Continue"}
           </button>
         </form>
       </section>
@@ -434,7 +472,7 @@ function HomePage({ state, commit, refreshState, user, onLogout }) {
                 onClick={handleDeleteAllSessions}
               >
                 <Trash2 size={18} />
-                Delete all
+                Delete my sessions
               </button>
             )}
           </div>
@@ -522,6 +560,7 @@ function NewSessionPage({ state, commit, user }) {
   const [selectedTemplateId, setSelectedTemplateId] = useState(defaultTemplate?.id || "scratch");
   const [criteria, setCriteria] = useState(() => templateToDraft(defaultTemplate));
   const [error, setError] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
 
   function selectTemplate(templateId) {
     setSelectedTemplateId(templateId);
@@ -543,7 +582,7 @@ function NewSessionPage({ state, commit, user }) {
     setCriteria((items) => items.filter((criterion) => criterion.id !== id));
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
     const hasCriteria = criteria.some((criterion) => criterion.name.trim());
     if (!title.trim() || !hasCriteria) {
@@ -551,9 +590,24 @@ function NewSessionPage({ state, commit, user }) {
       return;
     }
 
-    const result = createSession(state, { title, phase, cohort, criteria }, user.id);
-    commit(result.state);
-    navigate(`/sessions/${result.session.id}`);
+    setError("");
+    setIsCreating(true);
+    try {
+      const remoteState = hasRemoteStore ? await loadRemoteState() : null;
+      const reservedCodes = remoteState?.sessions.map((session) => session.code) || [];
+      const result = createSession(
+        state,
+        { title, phase, cohort, criteria, reservedCodes },
+        user.id
+      );
+      commit(result.state);
+      navigate(`/sessions/${result.session.id}`);
+    } catch (error) {
+      console.error(error);
+      setError("Could not create session. Try again.");
+    } finally {
+      setIsCreating(false);
+    }
   }
 
   return (
@@ -575,9 +629,9 @@ function NewSessionPage({ state, commit, user }) {
             </label>
           </div>
           <div className="button-row">
-            <button className="button button-primary" type="submit">
+            <button className="button button-primary" type="submit" disabled={isCreating}>
               <Save size={18} />
-              Create
+              {isCreating ? "Creating" : "Create"}
             </button>
             <Link className="button button-secondary" to="/home">
               Cancel
@@ -809,6 +863,11 @@ function ScoringFlowPage({ state, commit, user }) {
   }
 
   function handleNext() {
+    if (returnToReview) {
+      setReturnToReview(false);
+      setStep(criteria.length);
+      return;
+    }
     if (step < criteria.length - 1) {
       setStep(step + 1);
       return;
