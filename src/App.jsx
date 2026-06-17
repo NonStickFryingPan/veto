@@ -250,12 +250,6 @@ function LoginPage({ onLogin, user }) {
 
   return (
     <main className="login-screen">
-      <div className="login-doodles" aria-hidden="true">
-        <span className="doodle doodle-loop doodle-one" />
-        <span className="doodle doodle-line doodle-two" />
-        <span className="doodle doodle-scratch doodle-three" />
-        <span className="doodle doodle-loop doodle-four" />
-      </div>
       <section className="login-panel" aria-label="Veto login">
         <span className="wordmark login-wordmark">Veto</span>
         <form className="login-form" onSubmit={handleSubmit}>
