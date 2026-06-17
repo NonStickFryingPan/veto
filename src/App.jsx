@@ -65,6 +65,16 @@ import {
 } from "./store.js";
 
 const BLOCKS = ["lime", "lilac", "cream", "mint", "pink", "coral"];
+const LOGIN_NAME_PLACEHOLDERS = [
+  "Maya Patel",
+  "Omar Farooq",
+  "Nadia Chen",
+  "Leo Martins",
+  "Zara Malik",
+  "Theo Brooks",
+  "Iman Saleh",
+  "Sofia Reyes",
+];
 
 function usePersistentState() {
   const [state, setState] = useState(readState);
@@ -223,6 +233,9 @@ function RequireUser({ user, children }) {
 function LoginPage({ onLogin, user }) {
   const navigate = useNavigate();
   const [name, setName] = useState(user?.name || "");
+  const [namePlaceholder] = useState(
+    () => LOGIN_NAME_PLACEHOLDERS[Math.floor(Math.random() * LOGIN_NAME_PLACEHOLDERS.length)]
+  );
   const [error, setError] = useState("");
 
   function handleSubmit(event) {
@@ -237,6 +250,12 @@ function LoginPage({ onLogin, user }) {
 
   return (
     <main className="login-screen">
+      <div className="login-doodles" aria-hidden="true">
+        <span className="doodle doodle-loop doodle-one" />
+        <span className="doodle doodle-line doodle-two" />
+        <span className="doodle doodle-scratch doodle-three" />
+        <span className="doodle doodle-loop doodle-four" />
+      </div>
       <section className="login-panel" aria-label="Veto login">
         <span className="wordmark login-wordmark">Veto</span>
         <form className="login-form" onSubmit={handleSubmit}>
@@ -245,7 +264,7 @@ function LoginPage({ onLogin, user }) {
             id="name"
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="Ayesha Khan"
+            placeholder={namePlaceholder}
             autoComplete="name"
           />
           {error && <p className="form-error">{error}</p>}
