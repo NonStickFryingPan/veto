@@ -4,6 +4,7 @@ import {
   Navigate,
   Route,
   Routes,
+  useLocation,
   useNavigate,
   useParams,
 } from "react-router-dom";
@@ -259,6 +260,9 @@ function LoginPage({ onLogin, user }) {
 }
 
 function AppShell({ user, title, kicker, children, actions, onLogout, backTo }) {
+  const location = useLocation();
+  const activeSection = location.pathname.startsWith("/templates") ? "templates" : "home";
+
   return (
     <div className="app-shell">
       <header className="top-nav">
@@ -273,8 +277,12 @@ function AppShell({ user, title, kicker, children, actions, onLogout, backTo }) 
             </Link>
           )}
           <nav className="nav-links" aria-label="Primary">
-            <Link to="/home">Home</Link>
-            <Link to="/templates">Templates</Link>
+            <Link className={activeSection === "home" ? "active" : undefined} to="/home">
+              Home
+            </Link>
+            <Link className={activeSection === "templates" ? "active" : undefined} to="/templates">
+              Templates
+            </Link>
           </nav>
         </div>
         <div className="nav-actions">

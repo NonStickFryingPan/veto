@@ -25,6 +25,8 @@
   --radius-block: 24px;
   --pill: 999px;
   --shadow-soft: 0 12px 36px rgba(0, 0, 0, 0.08);
+  --ease-snap: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-soft: cubic-bezier(0.33, 1, 0.68, 1);
 }
 
 * {
@@ -148,13 +150,14 @@ button:disabled {
   font-weight: 560;
   cursor: pointer;
   transition:
-    transform 160ms ease,
-    box-shadow 160ms ease,
-    background-color 160ms ease;
+    transform 160ms var(--ease-snap),
+    box-shadow 160ms var(--ease-snap),
+    background-color 160ms var(--ease-snap),
+    color 160ms var(--ease-snap);
 }
 
-.button:hover {
-  transform: translateY(-1px);
+.button:active {
+  transform: scale(0.97);
 }
 
 .button-primary {
@@ -184,6 +187,13 @@ button:disabled {
   color: var(--ink);
   background: var(--surface-soft);
   cursor: pointer;
+  transition:
+    transform 160ms var(--ease-snap),
+    background-color 160ms var(--ease-snap);
+}
+
+.icon-button:active {
+  transform: scale(0.94);
 }
 
 .icon-button.soft {
@@ -288,24 +298,36 @@ button:disabled {
 
 .wordmark {
   display: inline-flex;
-  min-width: 74px;
+  min-width: 70px;
   height: 42px;
   align-items: center;
   justify-content: center;
-  border-radius: var(--pill);
-  color: var(--inverse-ink);
-  background: var(--ink);
-  font-weight: 760;
+  color: var(--lilac);
+  font-family: "Segoe Print", "Comic Sans MS", "Bradley Hand ITC", cursive;
+  font-size: 1.55rem;
+  font-weight: 780;
+  transform: rotate(-3deg);
+  animation: logo-color-cycle 7s linear infinite;
+  transition: transform 180ms var(--ease-snap);
 }
 
 .nav-links a {
   border-radius: var(--pill);
   padding: 9px 12px;
   font-weight: 540;
+  transition:
+    transform 160ms var(--ease-snap),
+    color 160ms var(--ease-snap),
+    background-color 160ms var(--ease-snap);
 }
 
-.nav-links a:hover {
-  background: var(--surface-soft);
+.nav-links a.active {
+  color: var(--inverse-ink);
+  background: var(--ink);
+}
+
+.nav-links a:active {
+  transform: scale(0.96);
 }
 
 .user-chip {
@@ -332,6 +354,7 @@ button:disabled {
   gap: 18px;
   padding-top: 48px;
   padding-bottom: 34px;
+  animation: surface-in 320ms var(--ease-soft) both;
 }
 
 .page-content {
@@ -412,13 +435,12 @@ button:disabled {
   border-radius: var(--radius-md);
   padding: 22px;
   transition:
-    transform 160ms ease,
-    box-shadow 160ms ease;
+    transform 180ms var(--ease-snap),
+    box-shadow 180ms var(--ease-snap);
 }
 
-.session-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-soft);
+.session-card:active {
+  transform: scale(0.99);
 }
 
 .session-card h3 {
@@ -471,6 +493,7 @@ button:disabled {
   border-radius: var(--radius-md);
   background: var(--canvas);
   padding: 22px;
+  animation: surface-in 260ms var(--ease-soft) both;
 }
 
 .two-column {
@@ -512,6 +535,11 @@ button:disabled {
   padding: 14px;
   text-align: left;
   cursor: pointer;
+  transition:
+    transform 160ms var(--ease-snap),
+    border-color 160ms var(--ease-snap),
+    background-color 160ms var(--ease-snap),
+    color 160ms var(--ease-snap);
 }
 
 .template-option.selected,
@@ -519,6 +547,11 @@ button:disabled {
   color: var(--inverse-ink);
   background: var(--ink);
   border-color: var(--ink);
+}
+
+.template-option:active,
+.template-list-item:active {
+  transform: scale(0.98);
 }
 
 .template-option span,
@@ -651,7 +684,7 @@ button:disabled {
   height: 100%;
   border-radius: inherit;
   background: var(--ink);
-  transition: width 180ms ease;
+  transition: width 220ms var(--ease-soft);
 }
 
 .score-count {
@@ -704,12 +737,21 @@ button:disabled {
   padding: 12px;
   text-align: left;
   cursor: pointer;
+  transition:
+    transform 160ms var(--ease-snap),
+    border-color 160ms var(--ease-snap),
+    background-color 160ms var(--ease-snap),
+    color 160ms var(--ease-snap);
 }
 
 .score-option.selected {
   color: var(--inverse-ink);
   background: var(--ink);
   border-color: var(--ink);
+}
+
+.score-option:active {
+  transform: scale(0.98);
 }
 
 .score-number {
@@ -891,6 +933,109 @@ button:disabled {
 .checkbox-row input {
   width: 20px;
   min-height: 20px;
+}
+
+@keyframes logo-color-cycle {
+  0%,
+  100% {
+    color: var(--lilac);
+  }
+
+  25% {
+    color: #ff3d8b;
+  }
+
+  50% {
+    color: var(--success);
+  }
+
+  75% {
+    color: #f06b37;
+  }
+}
+
+@keyframes surface-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.color-block,
+.metric,
+.session-card,
+.grade-banner {
+  animation: surface-in 280ms var(--ease-soft) both;
+}
+
+.session-card:nth-child(2),
+.metric:nth-child(2) {
+  animation-delay: 40ms;
+}
+
+.session-card:nth-child(3),
+.metric:nth-child(3) {
+  animation-delay: 80ms;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .button:hover,
+  .nav-links a:hover,
+  .icon-button:hover,
+  .score-option:hover,
+  .template-option:hover,
+  .template-list-item:hover {
+    transform: translateY(-1px);
+  }
+
+  .nav-links a:hover {
+    background: var(--surface-soft);
+  }
+
+  .nav-links a.active:hover {
+    background: var(--ink);
+  }
+
+  .wordmark:hover {
+    transform: rotate(-3deg) translateY(-1px) scale(1.04);
+  }
+
+  .session-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .button:active,
+  .nav-links a:active,
+  .score-option:active,
+  .template-option:active,
+  .template-list-item:active {
+    transform: scale(0.97);
+  }
+
+  .icon-button:active {
+    transform: scale(0.94);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
+
+  .wordmark {
+    color: var(--lilac);
+  }
 }
 
 @media (max-width: 960px) {
