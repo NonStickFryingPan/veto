@@ -123,6 +123,13 @@ function App() {
   const [state, commit] = usePersistentState();
   const [currentUser, setCurrentUser] = useState(readCurrentUser);
 
+  useEffect(() => {
+    if (!currentUser) return;
+    const exists = state.users.some((user) => user.id === currentUser.id);
+    if (exists) return;
+    commit((current) => ({ ...current, users: [...current.users, currentUser] }));
+  }, [currentUser?.id, state.users]);
+
   function handleLogin(name) {
     const result = upsertUser(state, name);
     commit(result.state);

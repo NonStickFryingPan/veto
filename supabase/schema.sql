@@ -72,6 +72,8 @@ alter table public.scores enable row level security;
 
 create policy "users_read_all" on public.users for select using (true);
 create policy "users_insert_all" on public.users for insert with check (true);
+create policy "users_update_all" on public.users for update using (true) with check (true);
+create policy "users_delete_all" on public.users for delete using (true);
 create policy "templates_read_all" on public.templates for select using (true);
 create policy "templates_insert_all" on public.templates for insert with check (true);
 create policy "templates_update_all" on public.templates for update using (true) with check (true);
