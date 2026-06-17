@@ -80,6 +80,15 @@ function mapScore(row) {
   };
 }
 
+function sameItem(previous, next) {
+  return JSON.stringify(previous) === JSON.stringify(next);
+}
+
+function changedItems(previousItems = [], nextItems = []) {
+  const previousById = new Map(previousItems.map((item) => [item.id, item]));
+  return nextItems.filter((item) => !sameItem(previousById.get(item.id), item));
+}
+
 export async function loadRemoteState() {
   if (!supabase) return null;
 
@@ -158,17 +167,29 @@ export async function persistRemoteState(nextState, previousState) {
   );
 
   await Promise.all([
-    deleteRemoved("scores", previousState.scores, nextState.scores),
-    deleteRemoved("session_judges", previousState.judges, nextState.judges),
-    deleteRemoved("session_criteria", previousState.criteria, nextState.criteria),
-    deleteRemoved("sessions", previousState.sessions, nextState.sessions),
     deleteRemoved("template_criteria", previousTemplateCriteria, nextTemplateCriteria),
     deleteRemoved("templates", previousState.templates, nextState.templates),
   ]);
 
+  const changedUsers = changedItems(previousState.users, nextState.users);
+  const changedTemplates = changedItems(previousState.templates, nextState.templates);
+  const changedTemplateIds = new Set(changedTemplates.map((template) => template.id));
+  const changedSessions = changedItems(previousState.sessions, nextState.sessions);
+  const changedCriteria = changedItems(previousState.criteria, nextState.criteria);
+  const changedJudges = changedItems(previousState.judges, nextState.judges);
+  const changedScores = changedItems(previousState.scores, nextState.scores);
+  const previousTemplateCriteriaById = new Map(
+    previousTemplateCriteria.map((criterion) => [criterion.id, criterion])
+  );
+  const changedTemplateCriteria = nextTemplateCriteria.filter(
+    (criterion) =>
+      changedTemplateIds.has(criterion.template_id) ||
+      !sameItem(previousTemplateCriteriaById.get(criterion.id), criterion)
+  );
+
   await upsertRows(
     "users",
-    nextState.users.map((user) => ({
+    changedUsers.map((user) => ({
       id: user.id,
       name: user.name,
       created_at: user.createdAt,
@@ -176,17 +197,17 @@ export async function persistRemoteState(nextState, previousState) {
   );
   await upsertRows(
     "templates",
-    nextState.templates.map((template) => ({
+    changedTemplates.map((template) => ({
       id: template.id,
       name: template.name,
       is_default: template.isDefault,
       created_at: template.createdAt,
     }))
   );
-  await upsertRows("template_criteria", nextTemplateCriteria);
+  await upsertRows("template_criteria", changedTemplateCriteria);
   await upsertRows(
     "sessions",
-    nextState.sessions.map((session) => ({
+    changedSessions.map((session) => ({
       id: session.id,
       code: session.code,
       title: session.title,
@@ -199,7 +220,7 @@ export async function persistRemoteState(nextState, previousState) {
   );
   await upsertRows(
     "session_criteria",
-    nextState.criteria.map((criterion) => ({
+    changedCriteria.map((criterion) => ({
       id: criterion.id,
       session_id: criterion.sessionId,
       name: criterion.name,
@@ -210,7 +231,7 @@ export async function persistRemoteState(nextState, previousState) {
   );
   await upsertRows(
     "session_judges",
-    nextState.judges.map((judge) => ({
+    changedJudges.map((judge) => ({
       id: judge.id,
       session_id: judge.sessionId,
       user_id: judge.userId,
@@ -220,7 +241,7 @@ export async function persistRemoteState(nextState, previousState) {
   );
   await upsertRows(
     "scores",
-    nextState.scores.map((score) => ({
+    changedScores.map((score) => ({
       id: score.id,
       session_id: score.sessionId,
       criterion_id: score.criterionId,
@@ -233,14 +254,19 @@ export async function persistRemoteState(nextState, previousState) {
 
 export function subscribeRemoteState(onChange) {
   if (!supabase) return () => {};
+  let reloadTimer = null;
 
-  const reload = async () => {
+  const load = async () => {
     try {
       const remoteState = await loadRemoteState();
       onChange(remoteState);
     } catch (error) {
       console.error(error);
     }
+  };
+  const reload = () => {
+    window.clearTimeout(reloadTimer);
+    reloadTimer = window.setTimeout(load, 120);
   };
 
   const channel = supabase
@@ -267,6 +293,7 @@ export function subscribeRemoteState(onChange) {
     .subscribe();
 
   return () => {
+    window.clearTimeout(reloadTimer);
     supabase.removeChannel(channel);
   };
 }

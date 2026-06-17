@@ -13,14 +13,11 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
-  ClipboardCopy,
   FileDown,
-  Home,
   ListChecks,
   LogOut,
   Plus,
   Play,
-  QrCode,
   Save,
   Search,
   Sparkles,
@@ -69,6 +66,12 @@ const BLOCKS = ["lime", "lilac", "cream", "mint", "pink", "coral"];
 function usePersistentState() {
   const [state, setState] = useState(readState);
 
+  const replaceState = (nextState) => {
+    writeState(nextState);
+    setState(nextState);
+    return nextState;
+  };
+
   const commit = (updater) => {
     setState((current) => {
       const next = typeof updater === "function" ? updater(current) : updater;
@@ -89,8 +92,7 @@ function usePersistentState() {
       loadRemoteState()
         .then((remoteState) => {
           if (!alive || !remoteState) return;
-          writeState(remoteState);
-          setState(remoteState);
+          replaceState(remoteState);
         })
         .catch((error) => {
           console.error(error);
@@ -98,8 +100,7 @@ function usePersistentState() {
 
       const unsubscribe = subscribeRemoteState((remoteState) => {
         if (!alive || !remoteState) return;
-        writeState(remoteState);
-        setState(remoteState);
+        replaceState(remoteState);
       });
 
       return () => {
@@ -116,11 +117,18 @@ function usePersistentState() {
     };
   }, []);
 
-  return [state, commit];
+  const refresh = async () => {
+    if (!hasRemoteStore) return readState();
+    const remoteState = await loadRemoteState();
+    if (!remoteState) return readState();
+    return replaceState(remoteState);
+  };
+
+  return [state, commit, refresh];
 }
 
 function App() {
-  const [state, commit] = usePersistentState();
+  const [state, commit, refreshState] = usePersistentState();
   const [currentUser, setCurrentUser] = useState(readCurrentUser);
 
   useEffect(() => {
@@ -149,7 +157,13 @@ function App() {
         path="/home"
         element={
           <RequireUser user={currentUser}>
-            <HomePage state={state} commit={commit} user={currentUser} onLogout={handleLogout} />
+            <HomePage
+              state={state}
+              commit={commit}
+              refreshState={refreshState}
+              user={currentUser}
+              onLogout={handleLogout}
+            />
           </RequireUser>
         }
       />
@@ -284,7 +298,7 @@ function AppShell({ user, title, kicker, children, actions, onLogout, backTo }) 
   );
 }
 
-function HomePage({ state, commit, user, onLogout }) {
+function HomePage({ state, commit, refreshState, user, onLogout }) {
   const [tab, setTab] = useState("active");
   const [joinCode, setJoinCode] = useState("");
   const [joinError, setJoinError] = useState("");
@@ -294,10 +308,19 @@ function HomePage({ state, commit, user, onLogout }) {
   const historySessions = sessions.filter((session) => session.status === "complete");
   const visibleSessions = tab === "active" ? activeSessions : historySessions;
 
-  function handleJoin(event) {
+  async function handleJoin(event) {
     event.preventDefault();
     const code = joinCode.trim().toUpperCase();
-    const session = state.sessions.find((item) => item.code === code);
+    let session = state.sessions.find((item) => item.code === code);
+
+    if (!session && hasRemoteStore) {
+      try {
+        const refreshedState = await refreshState();
+        session = refreshedState.sessions.find((item) => item.code === code);
+      } catch (error) {
+        console.error(error);
+      }
+    }
 
     if (!session) {
       setJoinError("No session found for that code.");
@@ -574,20 +597,18 @@ function SessionLobbyPage({ state, commit, user }) {
   const { sessionId } = useParams();
   const navigate = useNavigate();
   const bundle = findSessionBundle(state, sessionId);
-  const [copied, setCopied] = useState(false);
+  const session = bundle?.session;
+  const judges = bundle?.judges || [];
+  const isCreator = session?.createdBy === user.id;
+  const currentJudge = judges.find((judge) => judge.userId === user.id);
+
+  useEffect(() => {
+    if (session?.status === "scoring" && currentJudge) {
+      navigate(`/sessions/${session.id}/score`);
+    }
+  }, [currentJudge, navigate, session?.id, session?.status]);
 
   if (!bundle) return <Navigate to="/home" replace />;
-
-  const { session, judges } = bundle;
-  const isCreator = session.createdBy === user.id;
-  const currentJudge = judges.find((judge) => judge.userId === user.id);
-  const joinLink = `${window.location.origin}/sessions/${session.id}`;
-
-  async function copyLink() {
-    await navigator.clipboard?.writeText(joinLink);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
-  }
 
   function handleJoin() {
     commit((current) => joinSession(current, session.id, user.id));
@@ -606,19 +627,15 @@ function SessionLobbyPage({ state, commit, user }) {
             <p className="eyebrow">Join code</p>
             <div className="join-code">{session.code}</div>
           </div>
-          <div className="qr-wrap" aria-label="QR placeholder">
-            <QrCode size={88} />
-          </div>
-          <button className="button button-secondary" type="button" onClick={copyLink}>
-            <ClipboardCopy size={18} />
-            {copied ? "Copied" : "Copy link"}
-          </button>
+          <p className="join-code-note">Share this code with judges to bring them into the session.</p>
         </div>
 
         <div className="lobby-main">
           <div className="status-strip">
             <span>{session.status}</span>
-            <span>{judges.length} judges</span>
+            <span>
+              {judges.length} {judges.length === 1 ? "judge" : "judges"}
+            </span>
             <span>{bundle.criteria.length} criteria</span>
           </div>
           <JudgeList judges={judges} />

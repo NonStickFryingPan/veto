@@ -580,14 +580,10 @@ button:disabled {
   line-height: 0.9;
 }
 
-.qr-wrap {
-  display: grid;
-  width: 132px;
-  height: 132px;
-  place-items: center;
-  border: 1px solid var(--ink);
-  border-radius: var(--radius-md);
-  background: var(--canvas);
+.join-code-note {
+  max-width: 320px;
+  font-size: 1.05rem;
+  font-weight: 540;
 }
 
 .status-strip {
