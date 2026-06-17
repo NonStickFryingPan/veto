@@ -469,6 +469,13 @@ button:disabled {
   gap: 18px;
 }
 
+.session-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .tabs {
   display: inline-flex;
   width: fit-content;
@@ -1207,6 +1214,11 @@ button:disabled {
   .session-card,
   .grade-banner {
     grid-template-columns: 1fr;
+  }
+
+  .session-toolbar {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .session-card-content {

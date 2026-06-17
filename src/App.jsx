@@ -327,13 +327,21 @@ function HomePage({ state, commit, refreshState, user, onLogout }) {
   const activeSessions = sessions.filter((session) => session.status !== "complete");
   const historySessions = sessions.filter((session) => session.status === "complete");
   const visibleSessions = tab === "active" ? activeSessions : historySessions;
+  const deletableHistorySessionIds = historySessions
+    .filter((session) => session.createdBy === user.id)
+    .map((session) => session.id);
 
   function handleDeleteSession(session) {
-    const confirmed = window.confirm(
-      `Delete "${session.title}" and free join code ${session.code} for future rooms? This removes its scores for everyone.`
-    );
-    if (!confirmed) return;
     commit((current) => deleteSession(current, session.id));
+  }
+
+  function handleDeleteAllSessions() {
+    commit((current) =>
+      deletableHistorySessionIds.reduce(
+        (nextState, sessionId) => deleteSession(nextState, sessionId),
+        current
+      )
+    );
   }
 
   async function handleJoin(event) {
@@ -402,21 +410,33 @@ function HomePage({ state, commit, refreshState, user, onLogout }) {
         </div>
 
         <div className="session-panel">
-          <div className="tabs" role="tablist" aria-label="Session list">
-            <button
-              className={tab === "active" ? "tab selected" : "tab"}
-              type="button"
-              onClick={() => setTab("active")}
-            >
-              Active
-            </button>
-            <button
-              className={tab === "history" ? "tab selected" : "tab"}
-              type="button"
-              onClick={() => setTab("history")}
-            >
-              History
-            </button>
+          <div className="session-toolbar">
+            <div className="tabs" role="tablist" aria-label="Session list">
+              <button
+                className={tab === "active" ? "tab selected" : "tab"}
+                type="button"
+                onClick={() => setTab("active")}
+              >
+                Active
+              </button>
+              <button
+                className={tab === "history" ? "tab selected" : "tab"}
+                type="button"
+                onClick={() => setTab("history")}
+              >
+                History
+              </button>
+            </div>
+            {tab === "history" && deletableHistorySessionIds.length > 0 && (
+              <button
+                className="button button-secondary button-danger"
+                type="button"
+                onClick={handleDeleteAllSessions}
+              >
+                <Trash2 size={18} />
+                Delete all
+              </button>
+            )}
           </div>
           {visibleSessions.length ? (
             <div className="session-list">
@@ -907,10 +927,6 @@ function ResultsPage({ state, commit, user }) {
   }
 
   function handleDelete() {
-    const confirmed = window.confirm(
-      `Delete "${session.title}" and free join code ${session.code} for future rooms? This removes its scores for everyone.`
-    );
-    if (!confirmed) return;
     commit((current) => deleteSession(current, session.id));
     navigate("/home");
   }
