@@ -20,6 +20,10 @@ Veto is a mobile-first rubric scoring app for live judging sessions. Organizers 
 
 Built as a focused Vite prototype with local fallback storage and a Supabase-ready schema.
 
+## Session cleanup
+
+Completed rooms stay in History until the creator deletes them. Deleting a room removes its session, criteria, judges, and scores, then frees the join code for future rooms.
+
 ## License
 
 MIT

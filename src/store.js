@@ -188,6 +188,16 @@ export function generateJoinCode(title, phase, existingCodes = []) {
   return code;
 }
 
+export function deleteSession(state, sessionId) {
+  return {
+    ...state,
+    sessions: state.sessions.filter((session) => session.id !== sessionId),
+    criteria: (state.criteria || []).filter((criterion) => criterion.sessionId !== sessionId),
+    judges: state.judges.filter((judge) => judge.sessionId !== sessionId),
+    scores: state.scores.filter((score) => score.sessionId !== sessionId),
+  };
+}
+
 export function createSession(state, payload, userId) {
   const now = new Date().toISOString();
   const sessionId = createId("session");

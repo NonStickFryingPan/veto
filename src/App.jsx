@@ -23,6 +23,7 @@ import {
   Search,
   Sparkles,
   Trophy,
+  Trash2,
   Users,
 } from "lucide-react";
 import {
@@ -49,6 +50,7 @@ import {
   createBlankCriterion,
   createId,
   createSession,
+  deleteSession,
   findSessionBundle,
   getScoreLabel,
   getUserSessions,
@@ -196,7 +198,7 @@ function App() {
         path="/sessions/:sessionId/results"
         element={
           <RequireUser user={currentUser}>
-            <ResultsPage state={state} user={currentUser} />
+            <ResultsPage state={state} commit={commit} user={currentUser} />
           </RequireUser>
         }
       />
@@ -223,8 +225,6 @@ function LoginPage({ onLogin, user }) {
   const [name, setName] = useState(user?.name || "");
   const [error, setError] = useState("");
 
-  if (user) return <Navigate to="/home" replace />;
-
   function handleSubmit(event) {
     event.preventDefault();
     if (!name.trim()) {
@@ -237,9 +237,8 @@ function LoginPage({ onLogin, user }) {
 
   return (
     <main className="login-screen">
-      <section className="login-panel block-lime">
-        <p className="eyebrow">Veto</p>
-        <h1>Score one criterion at a time.</h1>
+      <section className="login-panel" aria-label="Veto login">
+        <span className="wordmark login-wordmark">Veto</span>
         <form className="login-form" onSubmit={handleSubmit}>
           <label htmlFor="name">Your name</label>
           <input
@@ -272,7 +271,7 @@ function AppShell({ user, title, kicker, children, actions, onLogout, backTo }) 
               <ArrowLeft size={18} />
             </Link>
           ) : (
-            <Link className="wordmark" to="/home">
+            <Link className="wordmark" to="/">
               Veto
             </Link>
           )}
@@ -315,6 +314,14 @@ function HomePage({ state, commit, refreshState, user, onLogout }) {
   const activeSessions = sessions.filter((session) => session.status !== "complete");
   const historySessions = sessions.filter((session) => session.status === "complete");
   const visibleSessions = tab === "active" ? activeSessions : historySessions;
+
+  function handleDeleteSession(session) {
+    const confirmed = window.confirm(
+      `Delete "${session.title}" and free join code ${session.code} for future rooms? This removes its scores for everyone.`
+    );
+    if (!confirmed) return;
+    commit((current) => deleteSession(current, session.id));
+  }
 
   async function handleJoin(event) {
     event.preventDefault();
@@ -406,6 +413,8 @@ function HomePage({ state, commit, refreshState, user, onLogout }) {
                   state={state}
                   session={session}
                   block={BLOCKS[index % BLOCKS.length]}
+                  canDelete={tab === "history" && session.createdBy === user.id}
+                  onDelete={handleDeleteSession}
                 />
               ))}
             </div>
@@ -428,7 +437,7 @@ function HomePage({ state, commit, refreshState, user, onLogout }) {
   );
 }
 
-function SessionCard({ state, session, block }) {
+function SessionCard({ state, session, block, canDelete, onDelete }) {
   const bundle = findSessionBundle(state, session.id);
   const results = bundle ? computeResults(bundle) : null;
   const href =
@@ -439,23 +448,35 @@ function SessionCard({ state, session, block }) {
         : `/sessions/${session.id}`;
 
   return (
-    <Link className={`session-card block-${block}`} to={href}>
-      <div>
-        <p className="eyebrow">{session.status}</p>
-        <h3>{session.title}</h3>
-        <p>{[session.phase, session.cohort].filter(Boolean).join(" / ") || "No phase"}</p>
-      </div>
-      <div className="session-meta">
-        <span>
-          <Users size={16} />
-          {bundle?.judges.length || 0}
-        </span>
-        <span>
-          <Check size={16} />
-          {results?.completionCount || 0}/{results?.totalJudges || 0}
-        </span>
-      </div>
-    </Link>
+    <article className={`session-card block-${block}`}>
+      <Link className="session-card-content" to={href}>
+        <div>
+          <p className="eyebrow">{session.status}</p>
+          <h3>{session.title}</h3>
+          <p>{[session.phase, session.cohort].filter(Boolean).join(" / ") || "No phase"}</p>
+        </div>
+        <div className="session-meta">
+          <span>
+            <Users size={16} />
+            {bundle?.judges.length || 0}
+          </span>
+          <span>
+            <Check size={16} />
+            {results?.completionCount || 0}/{results?.totalJudges || 0}
+          </span>
+        </div>
+      </Link>
+      {canDelete && (
+        <button
+          className="button button-secondary button-danger session-delete"
+          type="button"
+          onClick={() => onDelete(session)}
+        >
+          <Trash2 size={18} />
+          Delete
+        </button>
+      )}
+    </article>
   );
 }
 
@@ -707,6 +728,7 @@ function ScoringFlowPage({ state, commit, user }) {
   const navigate = useNavigate();
   const bundle = findSessionBundle(state, sessionId);
   const [step, setStep] = useState(0);
+  const [returnToReview, setReturnToReview] = useState(false);
 
   useEffect(() => {
     if (!bundle) return;
@@ -744,6 +766,15 @@ function ScoringFlowPage({ state, commit, user }) {
     navigator.vibrate?.(30);
   }
 
+  function handleTopBack() {
+    if (returnToReview && !isReview) {
+      setReturnToReview(false);
+      setStep(criteria.length);
+      return;
+    }
+    navigate(`/sessions/${session.id}`);
+  }
+
   function handleNext() {
     if (step < criteria.length - 1) {
       setStep(step + 1);
@@ -760,9 +791,14 @@ function ScoringFlowPage({ state, commit, user }) {
   return (
     <main className="score-screen">
       <div className="score-topbar">
-        <Link className="icon-button" to={`/sessions/${session.id}`} aria-label="Back to lobby">
+        <button
+          className="icon-button"
+          type="button"
+          onClick={handleTopBack}
+          aria-label={returnToReview && !isReview ? "Back to review" : "Back to lobby"}
+        >
           <ArrowLeft size={18} />
-        </Link>
+        </button>
         <div className="score-progress" aria-label="Progress">
           <span style={{ width: `${progress * 100}%` }} />
         </div>
@@ -812,7 +848,15 @@ function ScoringFlowPage({ state, commit, user }) {
           <h1>Submit scores</h1>
           <div className="review-list">
             {criteria.map((criterion, index) => (
-              <button className="review-row" type="button" key={criterion.id} onClick={() => setStep(index)}>
+              <button
+                className="review-row"
+                type="button"
+                key={criterion.id}
+                onClick={() => {
+                  setReturnToReview(true);
+                  setStep(index);
+                }}
+              >
                 <span>{criterion.name}</span>
                 <strong>{getScoreLabel(scoreMap.get(criterion.id))}</strong>
               </button>
@@ -828,14 +872,16 @@ function ScoringFlowPage({ state, commit, user }) {
   );
 }
 
-function ResultsPage({ state, user }) {
+function ResultsPage({ state, commit, user }) {
   const { sessionId } = useParams();
+  const navigate = useNavigate();
   const bundle = findSessionBundle(state, sessionId);
   const [exporting, setExporting] = useState(false);
 
   if (!bundle) return <Navigate to="/home" replace />;
 
   const { session, criteria, judges, scores } = bundle;
+  const canDelete = session.createdBy === user.id;
   const results = computeResults(bundle);
   const scoreLookup = new Map(
     scores.map((score) => [`${score.userId}:${score.criterionId}`, score.score])
@@ -847,6 +893,15 @@ function ResultsPage({ state, user }) {
     setExporting(false);
   }
 
+  function handleDelete() {
+    const confirmed = window.confirm(
+      `Delete "${session.title}" and free join code ${session.code} for future rooms? This removes its scores for everyone.`
+    );
+    if (!confirmed) return;
+    commit((current) => deleteSession(current, session.id));
+    navigate("/home");
+  }
+
   return (
     <AppShell
       user={user}
@@ -854,10 +909,18 @@ function ResultsPage({ state, user }) {
       kicker="Results"
       backTo="/home"
       actions={
-        <button className="button button-primary nav-cta" type="button" onClick={handleExport} disabled={exporting}>
-          <FileDown size={18} />
-          {exporting ? "Exporting" : "PDF"}
-        </button>
+        <>
+          <button className="button button-primary nav-cta" type="button" onClick={handleExport} disabled={exporting}>
+            <FileDown size={18} />
+            {exporting ? "Exporting" : "PDF"}
+          </button>
+          {canDelete && (
+            <button className="button button-secondary button-danger nav-cta" type="button" onClick={handleDelete}>
+              <Trash2 size={18} />
+              Delete
+            </button>
+          )}
+        </>
       }
     >
       <section className="results-stack" id="results-capture">

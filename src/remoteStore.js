@@ -169,7 +169,11 @@ export async function persistRemoteState(nextState, previousState) {
   await Promise.all([
     deleteRemoved("template_criteria", previousTemplateCriteria, nextTemplateCriteria),
     deleteRemoved("templates", previousState.templates, nextState.templates),
+    deleteRemoved("scores", previousState.scores, nextState.scores),
+    deleteRemoved("session_judges", previousState.judges, nextState.judges),
+    deleteRemoved("session_criteria", previousState.criteria, nextState.criteria),
   ]);
+  await deleteRemoved("sessions", previousState.sessions, nextState.sessions);
 
   const changedUsers = changedItems(previousState.users, nextState.users);
   const changedTemplates = changedItems(previousState.templates, nextState.templates);
